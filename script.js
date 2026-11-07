@@ -11,6 +11,9 @@ var fogos;
 
 var pontos = 0;
 var vidas = 3;
+var protecaoDano = 0;
+var inicioJogadorX = 37.5;
+var inicioJogadorY = 62.5;
 var gameState = "jogar";
 
 var velocidadeJogador = 2.5;
@@ -23,16 +26,28 @@ var bombaForte = false;
 iniciarJogo();
 
 function draw() {
+  var espacoPressionado = keyWentDown("space");
+  if (gameState != "jogar" && espacoPressionado) {
+    reiniciarJogo();
+  }
+
   background("green");
 
   if (gameState == "jogar") {
+    if (protecaoDano > 0) {
+      protecaoDano = protecaoDano - 1;
+    }
     controlarJogador();
     moverInimigos();
     atualizarBombas();
     atualizarFogos();
     verificarDanos();
-    verificarVitoria();
-    jogador.overlap(poderes, pegarPoder);
+    if (gameState == "jogar") {
+      verificarVitoria();
+    }
+    if (gameState == "jogar") {
+      jogador.overlap(poderes, pegarPoder);
+    }
   }
 
   drawSprites();
@@ -64,6 +79,7 @@ function iniciarJogo() {
 
   pontos = 0;
   vidas = 3;
+  protecaoDano = 0;
   gameState = "jogar";
   tempoParaNovaBomba = 0;
   podeSoltarBomba = false;
@@ -163,7 +179,7 @@ function posicaoLivreParaCaixa(x, y) {
 }
 
 function criarJogador() {
-  jogador = createSprite(37.5, 62.5, 25, 25);
+  jogador = createSprite(inicioJogadorX, inicioJogadorY, 25, 25);
   //jogador.shapeColor = "blue";
   jogador.setAnimation("bomberman-frente");
   
@@ -257,37 +273,36 @@ function explodirBomba(bomba) {
 
   criarFogo(x, y, dono, "chama0");
 
-  criarFogoDirecao(x, y, 25, 0, dono);
-  criarFogoDirecao(x, y, -25, 0, dono);
-  criarFogoDirecao(x, y, 0, 25, dono);
-  criarFogoDirecao(x, y, 0, -25, dono);
-
+  var alcance = 1;
   if (bombaForte && dono == "jogador") {
-    criarFogoDirecao(x + 25, y, 25, 0, dono);
-    criarFogoDirecao(x - 25, y, -25, 0, dono);
-    criarFogoDirecao(x, y + 25, 0, 25, dono);
-    criarFogoDirecao(x, y - 25, 0, -25, dono);
+    alcance = 2;
   }
+
+  criarFogoDirecao(x, y, 25, 0, dono, alcance);
+  criarFogoDirecao(x, y, -25, 0, dono, alcance);
+  criarFogoDirecao(x, y, 0, 25, dono, alcance);
+  criarFogoDirecao(x, y, 0, -25, dono, alcance);
 
   bomba.remove();
 }
 
-function criarFogoDirecao(x, y, dx, dy, dono) {
-  var novoX = x + dx;
-  var novoY = y + dy;
-  var animation = "chama0";
-  if(dx != 0){
-    animation = "chama1";
-  }
-  if (dy != 0){
-    animation = "chama2";
+function criarFogoDirecao(x, y, dx, dy, dono, alcance) {
+  var animacao = "chama1";
+  if (dy != 0) {
+    animacao = "chama2";
   }
 
-  if (temParedeEm(novoX, novoY)) {
-    return;
+  for (var distancia = 1; distancia <= alcance; distancia++) {
+    var novoX = x + dx * distancia;
+    var novoY = y + dy * distancia;
+
+    if (temParedeEm(novoX, novoY)) {
+      break;
+    }
+
+    criarFogo(novoX, novoY, dono, animacao);
+    destruirCaixaEm(novoX, novoY);
   }
-  criarFogo(novoX, novoY, dono,animation);
-  destruirCaixaEm(novoX, novoY);
 }
 
 function criarFogo(x, y, dono,animation) {
@@ -423,22 +438,17 @@ function verificarDanos() {
     }
   }
 
-  if (jogador.isTouching(fogos)) {
+  if (protecaoDano == 0 && (jogador.isTouching(fogos) || jogador.isTouching(inimigos))) {
     perderVida();
-    return;
-  }
-
-  if (jogador.isTouching(inimigos)) {
-    perderVida();
-    return;
   }
 }
 
 function perderVida() {
   vidas = vidas - 1;
 
-  jogador.x = 60;
-  jogador.y = 60;
+  jogador.x = inicioJogadorX;
+  jogador.y = inicioJogadorY;
+  protecaoDano = 45;
   jogador.velocityX = 0;
   jogador.velocityY = 0;
   bombaForte = false;
@@ -482,9 +492,6 @@ function telaGameOver() {
   fill("white");
   textSize(18);
   text("Aperte espaço para reiniciar", 200, 220);
-  if (keyDown("space")) {
-    reiniciarJogo();
-  }
 }
 function telaVitoria() {
   fill("yellow");
@@ -494,7 +501,4 @@ function telaVitoria() {
   fill("white");
   textSize(18);
   text("Aperte espaço para jogar novamente", 200, 220);
-  if (keyDown("space")) {
-    reiniciarJogo();
-  }
 }
